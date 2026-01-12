@@ -1,0 +1,17 @@
+# Flask Application Dependencies
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+
+# WSGI Server for Production
+gunicorn==21.2.0
+
+# Code Quality
+flake8==6.1.0
+black==23.12.1
+
+# Environment Management
+python-dotenv==1.0.0
