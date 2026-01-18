@@ -177,27 +177,33 @@ jobs:
           STAGING_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
         run: |
           echo "Deploying to staging environment..."
-          # Example deployment commands (customize based on your infrastructure)
-          # mkdir -p ~/.ssh
-          # echo "$STAGING_KEY" > ~/.ssh/deploy_key
-          # chmod 600 ~/.ssh/deploy_key
-          # scp -i ~/.ssh/deploy_key flask-app-${{ github.sha }}.tar.gz $STAGING_USER@$STAGING_HOST:$STAGING_PATH
-          # ssh -i ~/.ssh/deploy_key $STAGING_USER@$STAGING_HOST "cd $STAGING_PATH && tar -xzf flask-app-${{ github.sha }}.tar.gz"
-          # ssh -i ~/.ssh/deploy_key $STAGING_USER@$STAGING_HOST "cd $STAGING_PATH/build && pip install -r requirements.txt"
-          # ssh -i ~/.ssh/deploy_key $STAGING_USER@$STAGING_HOST "sudo systemctl restart flask-app-staging"
+          mkdir -p ~/.ssh
+          echo "$STAGING_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no flask-app-${{ github.sha }}.tar.gz $STAGING_USER@$STAGING_HOST:$STAGING_PATH
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST "cd $STAGING_PATH && tar -xzf flask-app-${{ github.sha }}.tar.gz"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST "cd $STAGING_PATH/build && ../venv/bin/pip install -r requirements.txt"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST "cp $STAGING_PATH/build/* $STAGING_PATH/"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST "sudo systemctl restart flask-app"
           echo "Deployment to staging completed!"
       
       - name: Run Smoke Tests
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
         run: |
           echo "Running smoke tests on staging..."
-          # Example: curl -f https://staging.example.com/api/health || exit 1
+          sleep 5
+          curl -f http://$STAGING_HOST/api/health || exit 1
+          curl -f http://$STAGING_HOST/api/info || exit 1
           echo "Smoke tests passed!"
       
       - name: Notify Deployment Success
         if: success()
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
         run: |
           echo "Staging deployment successful!"
-          echo "Staging URL: https://staging.example.com"
+          echo "Staging URL: http://$STAGING_HOST"
 
   # Job 5: Deploy to Production
   deploy-production:
@@ -231,20 +237,24 @@ jobs:
           PRODUCTION_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
         run: |
           echo "Deploying to production environment..."
-          # Example deployment commands (customize based on your infrastructure)
-          # mkdir -p ~/.ssh
-          # echo "$PRODUCTION_KEY" > ~/.ssh/deploy_key
-          # chmod 600 ~/.ssh/deploy_key
-          # scp -i ~/.ssh/deploy_key flask-app-${{ github.sha }}.tar.gz $PRODUCTION_USER@$PRODUCTION_HOST:$PRODUCTION_PATH
-          # ssh -i ~/.ssh/deploy_key $PRODUCTION_USER@$PRODUCTION_HOST "cd $PRODUCTION_PATH && tar -xzf flask-app-${{ github.sha }}.tar.gz"
-          # ssh -i ~/.ssh/deploy_key $PRODUCTION_USER@$PRODUCTION_HOST "cd $PRODUCTION_PATH/build && pip install -r requirements.txt"
-          # ssh -i ~/.ssh/deploy_key $PRODUCTION_USER@$PRODUCTION_HOST "sudo systemctl restart flask-app"
+          mkdir -p ~/.ssh
+          echo "$PRODUCTION_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no flask-app-${{ github.sha }}.tar.gz $PRODUCTION_USER@$PRODUCTION_HOST:$PRODUCTION_PATH
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $PRODUCTION_USER@$PRODUCTION_HOST "cd $PRODUCTION_PATH && tar -xzf flask-app-${{ github.sha }}.tar.gz"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $PRODUCTION_USER@$PRODUCTION_HOST "cd $PRODUCTION_PATH/build && ../venv/bin/pip install -r requirements.txt"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $PRODUCTION_USER@$PRODUCTION_HOST "cp $PRODUCTION_PATH/build/* $PRODUCTION_PATH/"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $PRODUCTION_USER@$PRODUCTION_HOST "sudo systemctl restart flask-app"
           echo "Deployment to production completed!"
       
       - name: Run Production Health Check
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
         run: |
           echo "Running health check on production..."
-          # Example: curl -f https://production.example.com/api/health || exit 1
+          sleep 5
+          curl -f http://$PRODUCTION_HOST/api/health || exit 1
+          curl -f http://$PRODUCTION_HOST/api/info || exit 1
           echo "Production health check passed!"
       
       - name: Create GitHub Release
@@ -263,9 +273,11 @@ jobs:
       
       - name: Notify Deployment Success
         if: success()
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
         run: |
           echo "Production deployment successful!"
-          echo "Production URL: https://production.example.com"
+          echo "Production URL: http://$PRODUCTION_HOST"
 
   # Job 6: Notify on Failure
   notify-failure:
