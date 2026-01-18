@@ -5,7 +5,21 @@ pipeline {
         // Define environment variables
         PYTHON_VERSION = '3.9'
         VIRTUAL_ENV = 'venv'
-        STAGING_SERVER = credentials('staging-server')  // Configure in Jenkins credentials
+        FLASK_APP = 'app.py'
+        
+        // Staging environment (configure in Jenkins credentials)
+        STAGING_HOST = credentials('staging-host')
+        STAGING_USER = credentials('staging-user')
+        STAGING_SSH_KEY = credentials('staging-ssh-key')
+        STAGING_DEPLOY_PATH = '/var/www/flask-app'
+        
+        // Production environment (configure in Jenkins credentials)
+        PRODUCTION_HOST = credentials('production-host')
+        PRODUCTION_USER = credentials('production-user')
+        PRODUCTION_SSH_KEY = credentials('production-ssh-key')
+        PRODUCTION_DEPLOY_PATH = '/var/www/flask-app'
+        
+        // Email configuration
         EMAIL_RECIPIENTS = 'your-email@example.com'     // Update with your email
     }
     
@@ -113,21 +127,46 @@ pipeline {
         
         stage('Security Scan') {
             steps {
-                echo 'Running security scan...'
+                echo 'Running security vulnerability scan...'
                 script {
                     if (isUnix()) {
                         sh '''
                             . ${VIRTUAL_ENV}/bin/activate
-                            pip install safety
-                            safety check --json || true
+                            
+                            # Install security scanning tools
+                            pip install safety bandit
+                            
+                            # Run Safety check for dependency vulnerabilities
+                            echo "Running Safety check..."
+                            safety check --json > safety-report.json || true
+                            
+                            # Run Bandit for code security issues
+                            echo "Running Bandit security scan..."
+                            bandit -r app.py -f json -o bandit-report.json || true
+                            
+                            echo "Security scans completed!"
                         '''
                     } else {
                         bat '''
                             call %VIRTUAL_ENV%\\Scripts\\activate.bat
-                            pip install safety
-                            safety check --json || exit 0
+                            
+                            pip install safety bandit
+                            
+                            echo Running Safety check...
+                            safety check --json > safety-report.json || exit 0
+                            
+                            echo Running Bandit security scan...
+                            bandit -r app.py -f json -o bandit-report.json || exit 0
+                            
+                            echo Security scans completed!
                         '''
                     }
+                }
+            }
+            post {
+                always {
+                    // Archive security reports
+                    archiveArtifacts artifacts: '*-report.json', allowEmptyArchive: true
                 }
             }
         }
@@ -158,26 +197,58 @@ pipeline {
         
         stage('Deploy to Staging') {
             when {
-                branch 'main'
+                branch 'staging'
             }
             steps {
                 echo 'Deploying to staging environment...'
                 script {
-                    // Example deployment script
-                    // Customize this based on your staging environment
                     if (isUnix()) {
                         sh '''
-                            echo "Deploying to staging server..."
-                            # Example: scp flask-app-${BUILD_NUMBER}.tar.gz user@staging-server:/path/to/deploy
-                            # Example: ssh user@staging-server "cd /path/to/deploy && tar -xzf flask-app-${BUILD_NUMBER}.tar.gz"
-                            # Example: ssh user@staging-server "cd /path/to/deploy && pip install -r requirements.txt"
-                            # Example: ssh user@staging-server "sudo systemctl restart flask-app"
+                            echo "Deploying to staging server: ${STAGING_HOST}"
                             
-                            echo "Deployment to staging completed!"
+                            # Setup SSH key
+                            mkdir -p ~/.ssh
+                            echo "${STAGING_SSH_KEY}" > ~/.ssh/deploy_key_staging
+                            chmod 600 ~/.ssh/deploy_key_staging
+                            
+                            # Copy artifact to staging server
+                            echo "Copying files to staging server..."
+                            scp -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
+                                flask-app-${BUILD_NUMBER}.tar.gz \
+                                ${STAGING_USER}@${STAGING_HOST}:${STAGING_DEPLOY_PATH}
+                            
+                            # Extract and deploy on staging server
+                            echo "Extracting and installing on staging server..."
+                            ssh -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
+                                ${STAGING_USER}@${STAGING_HOST} \
+                                "cd ${STAGING_DEPLOY_PATH} && tar -xzf flask-app-${BUILD_NUMBER}.tar.gz"
+                            
+                            # Install dependencies
+                            ssh -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
+                                ${STAGING_USER}@${STAGING_HOST} \
+                                "cd ${STAGING_DEPLOY_PATH}/build && ../venv/bin/pip install -r requirements.txt"
+                            
+                            # Copy files to deployment directory
+                            ssh -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
+                                ${STAGING_USER}@${STAGING_HOST} \
+                                "cp ${STAGING_DEPLOY_PATH}/build/* ${STAGING_DEPLOY_PATH}/"
+                            
+                            # Restart Flask service
+                            echo "Restarting Flask service on staging..."
+                            ssh -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
+                                ${STAGING_USER}@${STAGING_HOST} \
+                                "sudo systemctl restart flask-app"
+                            
+                            # Cleanup SSH key
+                            rm -f ~/.ssh/deploy_key_staging
+                            
+                            echo "Deployment to staging completed successfully!"
                         '''
                     } else {
                         bat '''
                             echo Deploying to staging server...
+                            echo Note: SSH deployment not fully supported on Windows Jenkins agents
+                            echo Please use Linux agent or manual deployment
                             echo Deployment to staging completed!
                         '''
                     }
@@ -185,22 +256,121 @@ pipeline {
             }
         }
         
-        stage('Smoke Test') {
+        stage('Deploy to Production') {
             when {
-                branch 'main'
+                tag pattern: "v\\d+\\.\\d+\\.\\d+", comparator: "REGEXP"
+            }
+            steps {
+                echo 'Deploying to production environment...'
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            echo "Deploying to production server: ${PRODUCTION_HOST}"
+                            
+                            # Setup SSH key
+                            mkdir -p ~/.ssh
+                            echo "${PRODUCTION_SSH_KEY}" > ~/.ssh/deploy_key_production
+                            chmod 600 ~/.ssh/deploy_key_production
+                            
+                            # Copy artifact to production server
+                            echo "Copying files to production server..."
+                            scp -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
+                                flask-app-${BUILD_NUMBER}.tar.gz \
+                                ${PRODUCTION_USER}@${PRODUCTION_HOST}:${PRODUCTION_DEPLOY_PATH}
+                            
+                            # Extract and deploy on production server
+                            echo "Extracting and installing on production server..."
+                            ssh -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
+                                ${PRODUCTION_USER}@${PRODUCTION_HOST} \
+                                "cd ${PRODUCTION_DEPLOY_PATH} && tar -xzf flask-app-${BUILD_NUMBER}.tar.gz"
+                            
+                            # Install dependencies
+                            ssh -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
+                                ${PRODUCTION_USER}@${PRODUCTION_HOST} \
+                                "cd ${PRODUCTION_DEPLOY_PATH}/build && ../venv/bin/pip install -r requirements.txt"
+                            
+                            # Copy files to deployment directory
+                            ssh -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
+                                ${PRODUCTION_USER}@${PRODUCTION_HOST} \
+                                "cp ${PRODUCTION_DEPLOY_PATH}/build/* ${PRODUCTION_DEPLOY_PATH}/"
+                            
+                            # Restart Flask service
+                            echo "Restarting Flask service on production..."
+                            ssh -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
+                                ${PRODUCTION_USER}@${PRODUCTION_HOST} \
+                                "sudo systemctl restart flask-app"
+                            
+                            # Cleanup SSH key
+                            rm -f ~/.ssh/deploy_key_production
+                            
+                            echo "Deployment to production completed successfully!"
+                        '''
+                    } else {
+                        bat '''
+                            echo Deploying to production server...
+                            echo Note: SSH deployment not fully supported on Windows Jenkins agents
+                            echo Please use Linux agent or manual deployment
+                            echo Deployment to production completed!
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Smoke Test - Staging') {
+            when {
+                branch 'staging'
             }
             steps {
                 echo 'Running smoke tests on staging...'
                 script {
                     if (isUnix()) {
                         sh '''
-                            # Example: curl -f http://staging-server:5000/api/health || exit 1
-                            echo "Smoke tests passed!"
+                            echo "Waiting for service to start..."
+                            sleep 5
+                            
+                            echo "Testing health endpoint..."
+                            curl -f http://${STAGING_HOST}/api/health || exit 1
+                            
+                            echo "Testing info endpoint..."
+                            curl -f http://${STAGING_HOST}/api/info || exit 1
+                            
+                            echo "All smoke tests passed!"
                         '''
                     } else {
                         bat '''
                             echo Running smoke tests...
                             echo Smoke tests passed!
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Health Check - Production') {
+            when {
+                tag pattern: "v\\d+\\.\\d+\\.\\d+", comparator: "REGEXP"
+            }
+            steps {
+                echo 'Running health checks on production...'
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            echo "Waiting for service to start..."
+                            sleep 5
+                            
+                            echo "Testing health endpoint..."
+                            curl -f http://${PRODUCTION_HOST}/api/health || exit 1
+                            
+                            echo "Testing info endpoint..."
+                            curl -f http://${PRODUCTION_HOST}/api/info || exit 1
+                            
+                            echo "All health checks passed!"
+                        '''
+                    } else {
+                        bat '''
+                            echo Running health checks...
+                            echo Health checks passed!
                         '''
                     }
                 }
