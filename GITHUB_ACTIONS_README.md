@@ -131,8 +131,6 @@ cd YOUR_REPO
 
 ### Step 2: Setup EC2 Servers
 
-Follow the complete guide: [docs/AWS_EC2_SETUP.md](docs/AWS_EC2_SETUP.md)
-
 **Quick setup:**
 ```bash
 # On both staging and production servers:
@@ -143,6 +141,9 @@ sudo chown ubuntu:ubuntu /var/www/flask-app
 cd /var/www/flask-app
 python3 -m venv venv
 ```
+<img width="1920" height="869" alt="image" src="https://github.com/user-attachments/assets/d158c4c1-0ee9-405f-819c-f288fa32dd94" />
+
+<img width="1920" height="869" alt="image" src="https://github.com/user-attachments/assets/643f0dc5-2786-47f2-93b2-d73caddd56f7" />
 
 ### Step 3: Configure GitHub Secrets
 
@@ -169,27 +170,6 @@ PRODUCTION_SSH_KEY      → [private SSH key content]
 PRODUCTION_DEPLOY_PATH  → /var/www/flask-app
 ```
 
-**Generate SSH keys:**
-```bash
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_staging
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_actions_production
-
-# Copy public keys to servers
-cat ~/.ssh/github_actions_staging.pub
-# Add to ~/.ssh/authorized_keys on staging server
-
-cat ~/.ssh/github_actions_production.pub
-# Add to ~/.ssh/authorized_keys on production server
-
-# Copy private keys to GitHub Secrets
-cat ~/.ssh/github_actions_staging      # → STAGING_SSH_KEY
-cat ~/.ssh/github_actions_production   # → PRODUCTION_SSH_KEY
-```
-</details>
-
-<details>
-<summary><b>📧 Email Secrets (6)</b></summary>
-
 **For Gmail:**
 ```
 EMAIL_SERVER      → smtp.gmail.com
@@ -206,18 +186,7 @@ EMAIL_RECIPIENTS  → your.email@gmail.com
 3. App passwords → Generate for "Mail"
 4. Copy 16-character password
 
-**For SendGrid:**
-```
-EMAIL_SERVER      → smtp.sendgrid.net
-EMAIL_PORT        → 587
-EMAIL_USERNAME    → apikey
-EMAIL_PASSWORD    → SG.xxxxxxxxxxxx (SendGrid API Key)
-EMAIL_FROM        → verified@yourdomain.com
-EMAIL_RECIPIENTS  → team@yourdomain.com
-```
-
-See: [docs/EMAIL_NOTIFICATION_SETUP.md](docs/EMAIL_NOTIFICATION_SETUP.md)
-</details>
+<img width="1920" height="1849" alt="image" src="https://github.com/user-attachments/assets/f30c14f0-ce87-4b59-bb2f-40a6540bc785" />
 
 ### Step 4: Push Code
 
