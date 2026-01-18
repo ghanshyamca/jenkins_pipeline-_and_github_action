@@ -169,13 +169,13 @@ EMAIL_RECIPIENTS  → your.email@gmail.com
 
 <img width="1920" height="1849" alt="image" src="https://github.com/user-attachments/assets/f30c14f0-ce87-4b59-bb2f-40a6540bc785" />
 
-### Step 4: Push Code
+### Step 4: Push Code to Staging
 
 ```bash
 # Initial setup
 git add .
 git commit -m "Setup GitHub Actions CI/CD"
-git push origin main
+git push origin staging
 ```
 
 ### Step 5: View Workflow
@@ -186,6 +186,12 @@ git push origin main
 4. Check email for notifications
 
 ---
+
+<img width="1920" height="1521" alt="image" src="https://github.com/user-attachments/assets/baffd622-316d-4e3b-8a6b-d1463fed3afb" />
+
+<img width="1515" height="558" alt="image" src="https://github.com/user-attachments/assets/a0180435-acb3-4d7f-9836-a6bc90910166" />
+
+
 
 ## 🔧 Workflow Jobs
 
