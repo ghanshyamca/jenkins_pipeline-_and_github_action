@@ -208,7 +208,7 @@ pipeline {
                             
                             # Setup SSH key
                             mkdir -p ~/.ssh
-                            echo "${STAGING_SSH_KEY}" > ~/.ssh/deploy_key_staging
+                            printf '%s\n' "${STAGING_SSH_KEY}" > ~/.ssh/deploy_key_staging
                             chmod 600 ~/.ssh/deploy_key_staging
                             
                             # Copy artifact to staging server
@@ -269,7 +269,7 @@ pipeline {
                             
                             # Setup SSH key
                             mkdir -p ~/.ssh
-                            echo "${PRODUCTION_SSH_KEY}" > ~/.ssh/deploy_key_production
+                            printf '%s\n' "${PRODUCTION_SSH_KEY}" > ~/.ssh/deploy_key_production
                             chmod 600 ~/.ssh/deploy_key_production
                             
                             # Copy artifact to production server
