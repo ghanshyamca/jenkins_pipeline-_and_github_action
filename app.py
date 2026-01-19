@@ -62,7 +62,6 @@ HOME_TEMPLATE = """
         <div class="endpoint">
             <strong>GET /api/add/&lt;num1&gt;/&lt;num2&gt;</strong> - Add two numbers
         </div>
-
         <h2>Environment:</h2>
         <p>Current environment: <strong>{{ environment }}</strong></p>
         <p>Version: <strong>1.0.0</strong></p>
