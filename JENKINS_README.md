@@ -2,20 +2,6 @@
 
 Complete CI/CD pipeline for automated testing, building, and deployment of Flask application using Jenkins.
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Pipeline Architecture](#pipeline-architecture)
-- [Prerequisites](#prerequisites)
-- [Jenkins Setup](#jenkins-setup)
-- [Pipeline Stages](#pipeline-stages)
-- [Configuration](#configuration)
-- [Credentials Setup](#credentials-setup)
-- [Running the Pipeline](#running-the-pipeline)
-- [Email Notifications](#email-notifications)
-- [Troubleshooting](#troubleshooting)
-- [Comparison with GitHub Actions](#comparison-with-github-actions)
 
 ---
 
@@ -115,24 +101,6 @@ Git Push → Checkout → Setup → Build → Quality Check → Test → Securit
          └─────────────┘
 ```
 
-### Pipeline Stages
-
-| Stage | Purpose | Runs On | Duration |
-|-------|---------|---------|----------|
-| **Checkout** | Clone repository | All branches | ~10s |
-| **Setup Environment** | Create Python venv | All branches | ~30s |
-| **Build** | Install dependencies | All branches | ~1-2 min |
-| **Code Quality Check** | Run flake8 linting | All branches | ~15s |
-| **Test** | Run pytest + coverage | All branches | ~1-2 min |
-| **Security Scan** | Safety + Bandit scan | All branches | ~1 min |
-| **Build Artifact** | Create deployment package | All branches | ~15s |
-| **Deploy to Staging** | SSH deploy to staging | `staging` branch | ~2-3 min |
-| **Deploy to Production** | SSH deploy to production | Tags `v*` | ~2-3 min |
-| **Smoke Test** | Verify staging deployment | `staging` branch | ~10s |
-| **Health Check** | Verify production deployment | Tags `v*` | ~10s |
-
-**Total Duration**: 8-12 minutes (depending on stage execution)
-
 ---
 
 ## 📋 Prerequisites
@@ -164,6 +132,7 @@ Install these plugins from **Manage Jenkins → Plugin Manager**:
 5. **JUnit** (JUnit Plugin)
 6. **HTML Publisher** (HTML Publisher plugin)
 7. **Workspace Cleanup** (Workspace Cleanup Plugin)
+8. **SSH Agent** (ssh agent)
 
 ### Infrastructure
 
@@ -226,9 +195,12 @@ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
    - Email Extension Plugin
    - HTML Publisher
    - JUnit Plugin
+   - SSH Agent
 
 4. Click **Install without restart**
 5. Restart Jenkins after installation
+
+<img width="1154" height="764" alt="image" src="https://github.com/user-attachments/assets/77409c03-71f6-41b9-8e04-70236dc9f3fa" />
 
 ### Step 4: Configure System Tools
 
@@ -257,9 +229,11 @@ python3 --version  # Should be 3.9+
 
 **Test configuration**: Click "Test configuration by sending test e-mail"
 
-See: [docs/EMAIL_NOTIFICATION_SETUP.md](docs/EMAIL_NOTIFICATION_SETUP.md)
-
 ---
+
+<img width="1212" height="768" alt="image" src="https://github.com/user-attachments/assets/83e15941-f102-43a2-8a97-78cbe0fae222" />
+
+
 
 ## ⚙️ Configuration
 
@@ -353,51 +327,8 @@ MIIEpAIBAAKCAQEA...
 - **ID**: `production-ssh-key`
 - **Description**: Production SSH Private Key
 
-### Generate SSH Keys for Deployment
 
-**On your local machine or Jenkins server:**
-
-```bash
-# Generate SSH key for staging
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/jenkins_staging -N ""
-
-# Generate SSH key for production
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/jenkins_production -N ""
-
-# Display public keys (add to servers)
-cat ~/.ssh/jenkins_staging.pub
-cat ~/.ssh/jenkins_production.pub
-
-# Display private keys (add to Jenkins credentials)
-cat ~/.ssh/jenkins_staging
-cat ~/.ssh/jenkins_production
-```
-
-**Add public keys to servers:**
-
-```bash
-# SSH to staging server
-ssh -i your-ec2-key.pem ubuntu@<STAGING-IP>
-
-# Add Jenkins public key
-echo "paste-public-key-here" >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-
-# Repeat for production server
-```
-
-### Credentials Summary
-
-| ID | Type | Description | Example Value |
-|----|------|-------------|---------------|
-| `staging-host` | Secret text | Staging server IP | `3.110.45.123` |
-| `staging-user` | Secret text | Staging SSH user | `ubuntu` |
-| `staging-ssh-key` | Secret text | Staging SSH private key | `-----BEGIN RSA...` |
-| `production-host` | Secret text | Production server IP | `13.234.56.78` |
-| `production-user` | Secret text | Production SSH user | `ubuntu` |
-| `production-ssh-key` | Secret text | Production SSH private key | `-----BEGIN RSA...` |
-
----
+<img width="1210" height="770" alt="image" src="https://github.com/user-attachments/assets/f80c4ba7-9cef-4925-a179-570b50657ce2" />
 
 ## 🔧 Pipeline Stages
 
