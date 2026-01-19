@@ -10,13 +10,11 @@ pipeline {
         // Staging environment (configure in Jenkins credentials)
         STAGING_HOST = credentials('staging-host')
         STAGING_USER = credentials('staging-user')
-        STAGING_SSH_KEY = credentials('staging-ssh-key')
         STAGING_DEPLOY_PATH = '/var/www/flask-app'
         
         // Production environment (configure in Jenkins credentials)
         PRODUCTION_HOST = credentials('production-host')
         PRODUCTION_USER = credentials('production-user')
-        PRODUCTION_SSH_KEY = credentials('production-ssh-key')
         PRODUCTION_DEPLOY_PATH = '/var/www/flask-app'
         
         // Email configuration
@@ -203,47 +201,36 @@ pipeline {
                 echo 'Deploying to staging environment...'
                 script {
                     if (isUnix()) {
-                        sh '''
-                            echo "Deploying to staging server: ${STAGING_HOST}"
-                            
-                            # Setup SSH key
-                            mkdir -p ~/.ssh
-                            echo "${STAGING_SSH_KEY}" > ~/.ssh/deploy_key_staging
-                            chmod 600 ~/.ssh/deploy_key_staging
-                            
-                            # Copy artifact to staging server
-                            echo "Copying files to staging server..."
-                            scp -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
-                                flask-app-${BUILD_NUMBER}.tar.gz \
-                                ${STAGING_USER}@${STAGING_HOST}:${STAGING_DEPLOY_PATH}
-                            
-                            # Extract and deploy on staging server
-                            echo "Extracting and installing on staging server..."
-                            ssh -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
-                                ${STAGING_USER}@${STAGING_HOST} \
-                                "cd ${STAGING_DEPLOY_PATH} && tar -xzf flask-app-${BUILD_NUMBER}.tar.gz"
-                            
-                            # Install dependencies
-                            ssh -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
-                                ${STAGING_USER}@${STAGING_HOST} \
-                                "cd ${STAGING_DEPLOY_PATH}/build && ../venv/bin/pip install -r requirements.txt"
-                            
-                            # Copy files to deployment directory
-                            ssh -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
-                                ${STAGING_USER}@${STAGING_HOST} \
-                                "cp ${STAGING_DEPLOY_PATH}/build/* ${STAGING_DEPLOY_PATH}/"
-                            
-                            # Restart Flask service
-                            echo "Restarting Flask service on staging..."
-                            ssh -i ~/.ssh/deploy_key_staging -o StrictHostKeyChecking=no \
-                                ${STAGING_USER}@${STAGING_HOST} \
-                                "sudo systemctl restart flask-app"
-                            
-                            # Cleanup SSH key
-                            rm -f ~/.ssh/deploy_key_staging
-                            
-                            echo "Deployment to staging completed successfully!"
-                        '''
+                        sshagent(credentials: ['staging-ssh-key']) {
+                            sh '''
+                                echo "Deploying to staging server: ${STAGING_HOST}"
+                                
+                                # Copy artifact to staging server
+                                echo "Copying files to staging server..."
+                                scp -o StrictHostKeyChecking=no \
+                                    flask-app-${BUILD_NUMBER}.tar.gz \
+                                    ${STAGING_USER}@${STAGING_HOST}:${STAGING_DEPLOY_PATH}
+                                
+                                # Extract and deploy on staging server
+                                echo "Extracting and installing on staging server..."
+                                ssh -o StrictHostKeyChecking=no \
+                                    ${STAGING_USER}@${STAGING_HOST} \
+                                    "cd ${STAGING_DEPLOY_PATH} && tar -xzf flask-app-${BUILD_NUMBER}.tar.gz"
+                                
+                                # Install dependencies
+                                ssh -o StrictHostKeyChecking=no \
+                                    ${STAGING_USER}@${STAGING_HOST} \
+                                    "cd ${STAGING_DEPLOY_PATH} && python3 -m venv venv && venv/bin/pip install -r requirements.txt"
+                                
+                                # Restart Flask service
+                                echo "Restarting Flask service on staging..."
+                                ssh -o StrictHostKeyChecking=no \
+                                    ${STAGING_USER}@${STAGING_HOST} \
+                                    "sudo systemctl restart flask-app"
+                                
+                                echo "Deployment to staging completed successfully!"
+                            '''
+                        }
                     } else {
                         bat '''
                             echo Deploying to staging server...
@@ -264,47 +251,36 @@ pipeline {
                 echo 'Deploying to production environment...'
                 script {
                     if (isUnix()) {
-                        sh '''
-                            echo "Deploying to production server: ${PRODUCTION_HOST}"
-                            
-                            # Setup SSH key
-                            mkdir -p ~/.ssh
-                            echo "${PRODUCTION_SSH_KEY}" > ~/.ssh/deploy_key_production
-                            chmod 600 ~/.ssh/deploy_key_production
-                            
-                            # Copy artifact to production server
-                            echo "Copying files to production server..."
-                            scp -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
-                                flask-app-${BUILD_NUMBER}.tar.gz \
-                                ${PRODUCTION_USER}@${PRODUCTION_HOST}:${PRODUCTION_DEPLOY_PATH}
-                            
-                            # Extract and deploy on production server
-                            echo "Extracting and installing on production server..."
-                            ssh -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
-                                ${PRODUCTION_USER}@${PRODUCTION_HOST} \
-                                "cd ${PRODUCTION_DEPLOY_PATH} && tar -xzf flask-app-${BUILD_NUMBER}.tar.gz"
-                            
-                            # Install dependencies
-                            ssh -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
-                                ${PRODUCTION_USER}@${PRODUCTION_HOST} \
-                                "cd ${PRODUCTION_DEPLOY_PATH}/build && ../venv/bin/pip install -r requirements.txt"
-                            
-                            # Copy files to deployment directory
-                            ssh -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
-                                ${PRODUCTION_USER}@${PRODUCTION_HOST} \
-                                "cp ${PRODUCTION_DEPLOY_PATH}/build/* ${PRODUCTION_DEPLOY_PATH}/"
-                            
-                            # Restart Flask service
-                            echo "Restarting Flask service on production..."
-                            ssh -i ~/.ssh/deploy_key_production -o StrictHostKeyChecking=no \
-                                ${PRODUCTION_USER}@${PRODUCTION_HOST} \
-                                "sudo systemctl restart flask-app"
-                            
-                            # Cleanup SSH key
-                            rm -f ~/.ssh/deploy_key_production
-                            
-                            echo "Deployment to production completed successfully!"
-                        '''
+                        sshagent(credentials: ['production-ssh-key']) {
+                            sh '''
+                                echo "Deploying to production server: ${PRODUCTION_HOST}"
+                                
+                                # Copy artifact to production server
+                                echo "Copying files to production server..."
+                                scp -o StrictHostKeyChecking=no \
+                                    flask-app-${BUILD_NUMBER}.tar.gz \
+                                    ${PRODUCTION_USER}@${PRODUCTION_HOST}:${PRODUCTION_DEPLOY_PATH}
+                                
+                                # Extract and deploy on production server
+                                echo "Extracting and installing on production server..."
+                                ssh -o StrictHostKeyChecking=no \
+                                    ${PRODUCTION_USER}@${PRODUCTION_HOST} \
+                                    "cd ${PRODUCTION_DEPLOY_PATH} && tar -xzf flask-app-${BUILD_NUMBER}.tar.gz"
+                                
+                                # Install dependencies
+                                ssh -o StrictHostKeyChecking=no \
+                                    ${PRODUCTION_USER}@${PRODUCTION_HOST} \
+                                    "cd ${PRODUCTION_DEPLOY_PATH} && python3 -m venv venv && venv/bin/pip install -r requirements.txt"
+                                
+                                # Restart Flask service
+                                echo "Restarting Flask service on production..."
+                                ssh -o StrictHostKeyChecking=no \
+                                    ${PRODUCTION_USER}@${PRODUCTION_HOST} \
+                                    "sudo systemctl restart flask-app"
+                                
+                                echo "Deployment to production completed successfully!"
+                            '''
+                        }
                     } else {
                         bat '''
                             echo Deploying to production server...
